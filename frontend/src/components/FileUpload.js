@@ -13,7 +13,7 @@ function FileUpload() {
         Array.from(files).forEach((file) => formData.append('txt_files', file));
 
         try {
-            const response = await fetch('http://localhost:8000/processar/', {
+            const response = await fetch('http://localhost:8000/processamento/processar/', {
                 method: 'POST',
                 body: formData,
             });

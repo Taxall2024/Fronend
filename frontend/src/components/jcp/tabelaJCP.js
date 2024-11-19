@@ -2,18 +2,55 @@ import React, { useState, useEffect } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 function TabelaJCP() {
+    const [empresas, setEmpresas] = useState([]);
+    const [empresaSelecionada, setEmpresaSelecionada] = useState('');
     const [cnpj, setCnpj] = useState('');
     const [ano, setAno] = useState('');
     const [tabela, setTabela] = useState([]);
     const [editingRowIndex, setEditingRowIndex] = useState(null);
     const [editedRowData, setEditedRowData] = useState({});
-    const [modeloTabela, setModeloTabela] = useState('anual'); // Estado para alternar entre anual e trimestral
+    const [modeloTabela, setModeloTabela] = useState('anual'); 
+
+    useEffect(() => {
+        const fetchEmpresas = async () => {
+            try {
+                const response = await fetch('http://localhost:8000/empresas/');
+                const result = await response.json();
+                if (result.data) {
+                    setEmpresas(result.data);
+                } else {
+                    alert(result.message || 'Erro ao carregar empresas');
+                }
+            } catch (error) {
+                console.error('Erro ao buscar empresas:', error);
+            }
+        };
+        fetchEmpresas();
+    }, []);
+    
+    const handleEmpresaChange = (e) => {
+    const nomeSelecionado = e.target.value;
+    setEmpresaSelecionada(nomeSelecionado);
+
+
+    const empresaEncontrada = empresas.find((empresa) => empresa.nome_da_empresa === nomeSelecionado);
+    if (empresaEncontrada) {
+        setCnpj(empresaEncontrada.cnpj); 
+    } else {
+        setCnpj(''); 
+    }
+};
 
     const buscarTabela = async () => {
+        if (!cnpj || !ano) {
+            alert('Por favor, insira o CNPJ e o Ano antes de buscar.');
+            return;
+        }
+
         try {
             const endpoint = modeloTabela === 'anual'
-                ? `http://localhost:8000/tabelaanual/${cnpj}/${ano}/`
-                : `http://localhost:8000/tabelatrimestral/${cnpj}/${ano}/`; // Alterna API com base no modelo
+                ? `http://localhost:8000/resultados/${cnpj}-${ano}/`
+                : `http://localhost:8000/resultados/trimestral/?cnpj=${cnpj}&ano=${ano}`; 
             const response = await fetch(endpoint);
             const result = await response.json();
             
@@ -45,8 +82,8 @@ function TabelaJCP() {
         
         try {
             const endpoint = modeloTabela === 'anual'
-            ? 'http://localhost:8000/recalcular_tabela_jcp/'
-            : 'http://localhost:8000/recalcular_tabela_trimestral_jcp/';
+            ? 'http://localhost:8000/recalcular/anual/'
+            : 'http://localhost:8000/recalcular/trimestral/';
     
         const response = await fetch(endpoint, {
             method: 'POST',
@@ -77,9 +114,11 @@ function TabelaJCP() {
     };
 
     useEffect(() => {
-        console.log('Tabela atualizada:', tabela);
-    }, [tabela]);
-    
+        buscarTabela();
+    }, [modeloTabela]);
+    useEffect(() => {
+        console.log('CNPJ Selecionado:', cnpj);
+    }, [cnpj]);
     return (
         <div className="container mt-4" style={{ marginTop:'40px', marginLeft: '20px', maxWidth: '50%' }}>
             <h4 style={{
@@ -93,14 +132,19 @@ function TabelaJCP() {
                 marginBottom: '5px'
                     }}>  Tabela JCP</h4>
                     <div className="mb-3">
-                <input
-                    type="text"
-                    className="form-control mb-2"
-                    style={{width: '200px',textAlign:'center' }}
-                    placeholder="CNPJ"
-                    value={cnpj}
-                    onChange={(e) => setCnpj(e.target.value)}
-                />
+                    <select
+                    className="form-select mb-2"
+                    style={{ width: '200px', textAlign: 'center' }}
+                    value={empresaSelecionada}
+                    onChange={handleEmpresaChange}
+                >
+                    <option value="">Selecione uma empresa</option>
+                    {empresas.map((empresa) => (
+                        <option key={empresa.cnpj} value={empresa.nome_da_empresa}>
+                            {empresa.nome_da_empresa}
+                        </option>
+                    ))}
+                </select>
                 <input
                     type="number"
                     className="form-control mb-2"
