@@ -10,6 +10,7 @@ function TabelaJCP() {
     const [editingRowIndex, setEditingRowIndex] = useState(null);
     const [editedRowData, setEditedRowData] = useState({});
     const [modeloTabela, setModeloTabela] = useState('anual'); 
+    const [tipoDeAnalise, setTipoDeAnalise] = useState([])
 
     useEffect(() => {
         const fetchEmpresas = async () => {
@@ -36,8 +37,62 @@ function TabelaJCP() {
     const empresaEncontrada = empresas.find((empresa) => empresa.nome_da_empresa === nomeSelecionado);
     if (empresaEncontrada) {
         setCnpj(empresaEncontrada.cnpj); 
+        fetchTipoDeAnalise(empresaEncontrada.cnpj);
     } else {
         setCnpj(''); 
+        setTipoDeAnalise([]);
+    }
+};
+
+
+const atualizar = async (index) => {
+    const updatetable = [...tabela]; // Dados alterados da linha
+    const endpoint = modeloTabela === 'anual'
+        ? 'http://localhost:8000/atualizar-tabela/atualizar-anual/'
+        : 'http://localhost:8000/atualizar-tabela/atualizar-trimestral/';
+
+    const payload = {
+        cnpj: cnpj, // CNPJ da empresa selecionada
+        ano: ano,   // Ano selecionado
+        dados: updatetable, // Dados alterados da linha
+    };
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            // Atualize a tabela localmente após o sucesso
+            setTabela(updatetable);
+            setEditingRowIndex(null);
+            alert(result.message || "Atualização bem-sucedida!");
+        } else {
+            alert(result.error || "Erro ao atualizar a tabela");
+        }
+    } catch (error) {
+        console.error("Erro ao salvar a tabela:", error);
+        alert("Erro ao salvar as alterações");
+    }
+};
+
+    const fetchTipoDeAnalise = async (cnpj) => {
+    try {
+        const response = await fetch(`http://localhost:8000/tipo-de-analise/?cnpj=${cnpj}`);
+        const result = await response.json();
+        if (result.data) {
+            setTipoDeAnalise(result.data); // Atualiza o estado com os dados recebidos
+        } else {
+            alert(result.message || 'Erro ao buscar Tipo de Análise');
+        }
+    } catch (error) {
+        console.error('Erro ao buscar Tipo de Análise:', error);
     }
 };
 
@@ -77,6 +132,7 @@ function TabelaJCP() {
         newTabela[index] = editedRowData;
         setTabela(newTabela);
         setEditingRowIndex(null);
+
 
         console.log("Tabela enviada para o backend:", newTabela);
         
@@ -120,56 +176,101 @@ function TabelaJCP() {
         console.log('CNPJ Selecionado:', cnpj);
     }, [cnpj]);
     return (
-        <div className="container mt-4" style={{ marginTop:'40px', marginLeft: '20px', maxWidth: '50%' }}>
-            <h4 style={{
-                textAlign: 'left',
-                paddingLeft:'50px',
-                color: '#333', // Texto preto suave
-                fontWeight: 'bold',
-                //backgroundColor: '#e0e0e0', // Fundo cinza claro que combina bem com o texto
-                borderRadius: '26px',
-                boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.05)',
-                marginBottom: '5px'
-                    }}>  Tabela JCP</h4>
-                    <div className="mb-3">
+        <div className="container mt-4" style={{ marginTop: '40px', marginLeft: '20px', maxWidth: '80%' }}>
+            <h4
+                style={{
+                    textAlign: 'left',
+                    paddingLeft: '50px',
+                    color: '#333', // Texto preto suave
+                    fontWeight: 'bold',
+                    borderRadius: '26px',
+                    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.05)',
+                    marginBottom: '5px',
+                }}
+            >
+                Tabela JCP
+            </h4>
+    
+            {/* Contêiner principal para alinhar elementos lado a lado */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '20px' }}>
+                {/* Inputs e seletores */}
+                <div>
                     <select
-                    className="form-select mb-2"
-                    style={{ width: '200px', textAlign: 'center' }}
-                    value={empresaSelecionada}
-                    onChange={handleEmpresaChange}
-                >
-                    <option value="">Selecione uma empresa</option>
-                    {empresas.map((empresa) => (
-                        <option key={empresa.cnpj} value={empresa.nome_da_empresa}>
-                            {empresa.nome_da_empresa}
-                        </option>
-                    ))}
-                </select>
-                <input
-                    type="number"
-                    className="form-control mb-2"
-                    placeholder="Ano"
-                    style={{width: '200px',textAlign:'center' }}
-                    value={ano}
-                    onChange={(e) => setAno(e.target.value)}
-                />
+                        className="form-select mb-2"
+                        style={{ width: '200px', textAlign: 'center' }}
+                        value={empresaSelecionada}
+                        onChange={handleEmpresaChange}
+                    >
+                        <option value="">Selecione uma empresa</option>
+                        {empresas.map((empresa) => (
+                            <option key={empresa.cnpj} value={empresa.nome_da_empresa}>
+                                {empresa.nome_da_empresa}
+                            </option>
+                        ))}
+                    </select>
+    
+                    <input
+                        type="number"
+                        className="form-control mb-2"
+                        placeholder="Ano"
+                        style={{ width: '200px', textAlign: 'center' }}
+                        value={ano}
+                        onChange={(e) => setAno(e.target.value)}
+                    />
+    
+                    <select
+                        className="form-select mb-2"
+                        style={{ width: '200px', textAlign: 'center' }}
+                        value={modeloTabela}
+                        onChange={(e) => setModeloTabela(e.target.value)}
+                    >
+                        <option value="anual">Anual</option>
+                        <option value="trimestral">Trimestral</option>
+                    </select>
+                <button className="btn btn-primary mt-2" onClick={buscarTabela}>
+                        Buscar Tabela
+                </button>
 
-                {/* Select para escolher o modelo de tabela */}
-                <select
-                    className="form-select mb-2"
-                    style={{width: '200px',textAlign:'center' }}
-                    value={modeloTabela}
-                    onChange={(e) => setModeloTabela(e.target.value)}
+                </div>
+    
+                {/* Tabela compacta */}
+                <table
+                    className="table table-sm"
+                    style={{ width: '300px', fontSize: '14px', textAlign: 'center' }}
                 >
-                    <option value="anual">Anual</option>
-                    <option value="trimestral">Trimestral</option>
-                </select>
+                    <thead>
+                        <tr>
+                            <th>Ano</th>
+                            <th>Tipo Análise</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {tipoDeAnalise.length > 0 ? (
+                            tipoDeAnalise.map((item, index) => (
+                                <tr key={index}>
+                                    <td>{item.periodo_de_analise}</td>
+                                    <td>{item.tipo_da_analise}</td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan="2">Nenhum dado encontrado</td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
 
-                <button className="btn btn-primary" onClick={buscarTabela}>Buscar Tabela</button>
+                <button className="btn btn-outline-warning" onClick={atualizar}>
+                        Salvar Alterações
+                </button>
+
+
+
             </div>
 
             {Array.isArray(tabela) && tabela.length > 0 ? (
-                <table className="table table-striped table-hover mt-4">
+                <table className="table table-striped table-hover mt-4"
+                style={{ width: '700px', fontSize: '14px', textAlign: 'center' }}>
                     <thead className="thead-dark">
                         <tr>
                             <th>CNPJ</th>
