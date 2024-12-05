@@ -33,7 +33,7 @@ function AnaliseRoutes() {
     <>
       <AppNavbar />
       <Routes>
-        <Route path="" element={<h1>Página de Análise</h1>} />
+        <Route path="" element={<JCPPage />} />
         <Route path="jcp" element={<JCPPage />} />
       </Routes>
     </>

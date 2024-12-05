@@ -6,11 +6,17 @@ function TabelaJCP() {
     const [empresaSelecionada, setEmpresaSelecionada] = useState('');
     const [cnpj, setCnpj] = useState('');
     const [ano, setAno] = useState('');
+    
     const [tabela, setTabela] = useState([]);
     const [editingRowIndex, setEditingRowIndex] = useState(null);
     const [editedRowData, setEditedRowData] = useState({});
     const [modeloTabela, setModeloTabela] = useState('anual'); 
+
     const [tipoDeAnalise, setTipoDeAnalise] = useState([])
+
+    const [lacsLalurTabela, setLacsLalurTabela] = useState([])
+    const [editingLacsLalurRowIndex, setEditingLacsLalurRowIndex] = useState(null);
+    const [editedLacsLalurRowData, setEditedLacsLalurRowData] = useState({});
 
     useEffect(() => {
         const fetchEmpresas = async () => {
@@ -43,7 +49,49 @@ function TabelaJCP() {
         setTipoDeAnalise([]);
     }
 };
+    const handleLacsLalurEdit = (index, row) => {
+        setEditingLacsLalurRowIndex(index);
+        setEditedLacsLalurRowData(row);
+    };
 
+    const handleLacsLalurSave = async (index) => {
+        const newLacsLalurTabela = [...lacsLalurTabela];
+        newLacsLalurTabela[index] = editedLacsLalurRowData;
+        setLacsLalurTabela(newLacsLalurTabela);
+        setEditingLacsLalurRowIndex(null);
+
+
+        console.log("Tabela enviada para o backend:", newLacsLalurTabela);
+        
+        try {
+            const endpoint = modeloTabela === 'anual'
+            ? 'http://localhost:8000/apos-inovacoes-anual/recalcular-lacslalur/'
+            : 'http://localhost:8000/recalcular/trimestral/';
+    
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(newLacsLalurTabela),
+            
+        });
+    
+            
+            const newTabelaResponseLacs = await response.json();
+            
+            if (newTabelaResponseLacs.data && Array.isArray(newTabelaResponseLacs.data)) {
+                setTabela(newTabelaResponseLacs.data);
+            } else {
+                console.log("Tabela de volta:", newTabelaResponseLacs);
+                alert("Erro ao atualizar a tabela: formato de resposta inesperado.");
+            }
+        } catch (error) {
+            console.error("Erro ao recalcular a tabela:", error);
+            alert("Erro ao recalcular a tabela.");
+        }
+    };
+    
 
 const atualizar = async (index) => {
     const updatetable = [...tabela]; // Dados alterados da linha
@@ -98,7 +146,7 @@ const atualizar = async (index) => {
 
     const buscarTabela = async () => {
         if (!cnpj || !ano) {
-            alert('Por favor, insira o CNPJ e o Ano antes de buscar.');
+           
             return;
         }
 
@@ -113,6 +161,32 @@ const atualizar = async (index) => {
 
             if (Array.isArray(result.data)) {
                 setTabela(result.data);
+            } else {
+                alert(result.message || 'Erro ao buscar a tabela');
+            }
+        } catch (error) {
+            console.error('Erro ao buscar a tabela:', error);
+            alert('Erro ao buscar a tabela');
+        }
+    };
+
+    const LacsLalur = async () => {
+        if (!cnpj || !ano) {
+           
+            return;
+        }
+
+        try {
+            const endpoint = modeloTabela === 'anual'
+                ? `http://localhost:8000//apos-inovacoes-anual/lacslalur/${cnpj}-${ano}/`
+                : ``; 
+            const response = await fetch(endpoint);
+            const result = await response.json();
+            
+            console.log(result);
+
+            if (Array.isArray(result.data)) {
+                setLacsLalurTabela(result.data);
             } else {
                 alert(result.message || 'Erro ao buscar a tabela');
             }
@@ -259,15 +333,21 @@ const atualizar = async (index) => {
                         )}
                     </tbody>
                 </table>
-
+                <div  style={{display:'flex',flexDirection:'column',gap:'10px'}}>            
                 <button className="btn btn-outline-warning" onClick={atualizar}>
                         Salvar Alterações
                 </button>
-
+                <button className="btn btn-secondary" onClick={LacsLalur}>
+                    Buscar LacsLalur
+                </button>
+            <div style={{display:'flex',justifyContent:'space-between'}}>
+            </div>
+            </div>
 
 
             </div>
-
+            
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>                 
             {Array.isArray(tabela) && tabela.length > 0 ? (
                 <table className="table table-striped table-hover mt-4"
                 style={{ width: '700px', fontSize: '14px', textAlign: 'center' }}>
@@ -405,6 +485,64 @@ const atualizar = async (index) => {
             ) : (
                 <p>Nenhum dado disponível para exibir.</p>
             )}
+                  {/* Nova Tabela LacsLalur */}
+        <table
+            className="table table-striped table-hover mt-4"
+            style={{ width: '500px', fontSize: '14px', textAlign: 'center' }}
+        >
+            <thead>
+                <tr>
+                    <th>Operação Lacs e Lalur</th>
+                    <th>Valor</th>
+                </tr>
+            </thead>
+            <tbody>
+            {lacsLalurTabela.length > 0 ? (
+                    lacsLalurTabela.map((row, index) => (
+                        <tr key={index}>
+                            {editingLacsLalurRowIndex === index ? (
+                                <>
+                                    <td>
+                                        <input
+                                            type="text"
+                                            name="operation"
+                                            value={editedLacsLalurRowData.operation}
+                                            onChange={(e) => setEditedLacsLalurRowData({ ...editedLacsLalurRowData, operation: e.target.value })}
+                                            className="form-control"
+                                        />
+                                    </td>
+                                    <td>
+                                        <input
+                                            type="number"
+                                            name="value"
+                                            value={editedLacsLalurRowData.value}
+                                            onChange={(e) => setEditedLacsLalurRowData({ ...editedLacsLalurRowData, value: e.target.value })}
+                                            className="form-control"
+                                        />
+                                    </td>
+                                    <td>
+                                        <button className="btn btn-success" onClick={() => handleLacsLalurSave(index)}>Salvar</button>
+                                    </td>
+                                </>
+                            ) : (
+                                <>
+                                    <td>{row.operation}</td>
+                                    <td>{row.value}</td>
+                                    <td>
+                                        <button className="btn btn-warning" onClick={() => handleLacsLalurEdit(index, row)}>Editar</button>
+                                    </td>
+                                </>
+                            )}
+                        </tr>
+                    ))
+                ) : (
+                    <tr>
+                        <td colSpan="3">Nenhum dado encontrado</td>
+                    </tr>
+                )}
+            </tbody>
+        </table>
+        </div>
         </div>
     );
 }
